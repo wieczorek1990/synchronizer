@@ -9,10 +9,10 @@ class OwnerMixin(views.APIView):
 
 
 class StationViewSet(OwnerMixin, viewsets.ModelViewSet):
-    queryset = models.Station.objects.all()
+    queryset = models.Station.objects.all()  # noqa
     serializer_class = serializers.StationSerializer
 
 
 class StationConnectionViewSet(OwnerMixin, viewsets.ModelViewSet):
-    queryset = models.StationConnection.objects.all()
+    queryset = models.StationConnection.objects.all()  # noqa
     serializer_class = serializers.StationConnectionSerializer

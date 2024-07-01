@@ -116,7 +116,7 @@ class APICaller:
         print("Available stations:")
         for station in stations:
             print(f"{station["name"]}")
-        # TODO(lukasz.wieczorek): Implement.
+        # TODO(lukaszwieczorek): Implement.
         station_pk_string = "1"
         station_pk = int(station_pk_string)
         return station_pk

@@ -3,7 +3,7 @@ from django.conf.urls import static
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework import routers
-from rest_framework.authtoken import views as authtoken_views
+from rest_framework.authtoken import views as auth_token_views
 from stations import views
 
 router = routers.DefaultRouter()
@@ -16,6 +16,6 @@ router.register(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/auth/token/", authtoken_views.obtain_auth_token),
+    path("api/auth/token/", auth_token_views.obtain_auth_token),
     path("api/", include(router.urls)),
 ] + static.static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
