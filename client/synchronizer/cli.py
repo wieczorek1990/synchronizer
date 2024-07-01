@@ -7,6 +7,7 @@ import sys
 import time
 
 import requests
+import survey
 from watchdog import events, observers
 
 DEBUG = bool(int(os.environ.get("DEBUG", "0")))
@@ -72,7 +73,7 @@ class APICaller:
         station = response.json()
         return station
 
-    def fetch_stations(self) -> list:
+    def fetch_stations(self) -> list[dict]:
         url = f"{self.API_ROOT}/stations/"
         headers = self.headers()
         response = requests.get(url, headers=headers)
@@ -113,12 +114,12 @@ class APICaller:
 
     def get_station_pk(self) -> int:
         stations = self.fetch_stations()
-        print("Available stations:")
-        for station in stations:
-            print(f"{station["name"]}")
-        # TODO(lukaszwieczorek): Implement.
-        station_pk_string = "1"
-        station_pk = int(station_pk_string)
+        options = [
+            f"{station["pk"]}: {station["name"]}" for station in stations
+        ]
+        index = survey.routines.select("Available stations: ", options=options)
+        station = stations[index]
+        station_pk = station["pk"]
         return station_pk
 
 
@@ -144,11 +145,10 @@ class EventHandler(events.FileSystemEventHandler):
         pprint.pprint(event)
 
 
-def create_observer(
-    event_handler: EventHandler, path: str
-) -> observers.Observer:
+def create_observer(config: Config) -> observers.Observer:
+    event_handler = EventHandler(config)
     observer = observers.Observer()
-    observer.schedule(event_handler, path, recursive=True)
+    observer.schedule(event_handler, config.synchronized_path, recursive=True)
     return observer
 
 
@@ -166,9 +166,8 @@ def run() -> None:
 
     all_observers = []
     for config in settings.configs:
-        event_handler = EventHandler(config)
         print(f"Creating observer for path: {config.synchronized_path}")
-        observer = create_observer(event_handler, config.synchronized_path)
+        observer = create_observer(config)
         all_observers.append(observer)
 
     print("Starting observers.")

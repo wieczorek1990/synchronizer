@@ -9,10 +9,10 @@ class WithUserModelSerializer(serializers.ModelSerializer):
 class StationSerializer(WithUserModelSerializer):
     class Meta:
         model = models.Station
-        fields = ("name", "path", "user")
+        fields = ("pk", "name", "path", "user")
 
 
 class StationConnectionSerializer(WithUserModelSerializer):
     class Meta:
         model = models.StationConnection
-        fields = ("station_a", "station_b", "user")
+        fields = ("pk", "station_a", "station_b", "user")
