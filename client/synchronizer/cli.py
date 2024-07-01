@@ -2,6 +2,7 @@ import dataclasses
 import json
 import os
 import pprint
+import sys
 import time
 
 import requests
@@ -130,7 +131,7 @@ def log() -> None:
     time.sleep(SLEEP_TIME)
 
 
-def main() -> None:
+def run() -> None:
     print("Starting.")
 
     settings = LocalSettings()
@@ -161,3 +162,37 @@ def main() -> None:
         observer.join()
 
     print("Exiting.")
+
+
+def setup():
+    pass
+
+
+def print_help():
+    print(
+        "Synchronizer client.\n"
+        "Usage:\n"
+        "\tpython -m synchronizer run|setup|help"
+    )
+
+
+def main() -> None:
+    try:
+        command = sys.argv[1]
+    except IndexError:
+        print_help()
+        return
+
+    match command:
+        case "run":
+            print("Starting running.")
+            run()
+        case "setup":
+            print("Starting setup.")
+            setup()
+        case "help":
+            print("Starting help.")
+            print_help()
+        case command:
+            print(f"Invalid command: {command}")
+            print_help()
