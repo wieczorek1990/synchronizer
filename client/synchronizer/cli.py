@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import os
 import pprint
@@ -5,7 +6,6 @@ import time
 
 import requests
 from watchdog import events, observers
-from watchdog.events import FileSystemEvent
 
 DEBUG = bool(int(os.environ.get("DEBUG", "0")))
 
@@ -19,16 +19,30 @@ else:
     HOSTNAME = "synchronizer.soiree.tech"
 
 
+@dataclasses.dataclass
+class Station:
+    id: int
+    path: str
+
+
+@dataclasses.dataclass
+class Config:
+    synchronized_path: str
+    push_to_station_pk: int
+
+
 class LocalSettings:
     def __init__(self) -> None:
         with open("settings.json") as file_pointer:
             all_settings = json.load(file_pointer)
+
         self.token = all_settings["token"]
         self.station_id = all_settings["station_id"]
-        self.path = None
 
-    def set_path(self, path: str) -> None:
-        self.path = path
+        self.configs = []
+
+    def set_configs(self, configs: list[Config]) -> None:
+        self.configs = configs
 
 
 class APICaller:
@@ -56,36 +70,56 @@ class APICaller:
         return station_connections
 
     def setup(self) -> None:
+        configs = []
         station_connections = self.fetch_station_connections()
-        for station in station_connections:
-            if (
-                station["station_a"] == self.settings.station_id
-                or station["station_b"] == self.settings.station_id
-            ):
-                station = self.fetch_station(self.settings.station_id)
-                path = station["path"]
-                self.settings.set_path(path)
-                return
-        else:
-            raise ValueError("No matching station found.")
+        for station_connection in station_connections:
+            station_a_pk = station_connection["station_a"]
+            station_b_pk = station_connection["station_b"]
+
+            station_a = self.fetch_station(station_a_pk)
+            station_b = self.fetch_station(station_b_pk)
+
+            if station_a_pk == self.settings.station_id:
+                synchronized_path = station_a["path"]
+                push_to_station = station_b_pk
+            elif station_b_pk == self.settings.station_id:
+                synchronized_path = station_b["path"]
+                push_to_station = station_a
+            else:
+                raise ValueError(
+                    f"Invalid station connection: {station_connection}"
+                )
+
+            config = Config(synchronized_path, push_to_station)
+            configs.append(config)
+        self.settings.set_configs(configs)
 
 
 class EventHandler(events.FileSystemEventHandler):
-    def on_created(self, event: FileSystemEvent) -> None:
+    def __init__(self, config: Config) -> None:
+        super().__init__()
+
+        self.config = config
+
+    def __str__(self) -> str:
+        return f"{self.config}"
+
+    def on_created(self, event: events.FileSystemEvent) -> None:
         pprint.pprint(event)
 
-    def on_deleted(self, event: FileSystemEvent) -> None:
+    def on_deleted(self, event: events.FileSystemEvent) -> None:
         pprint.pprint(event)
 
-    def on_modified(self, event: FileSystemEvent) -> None:
+    def on_modified(self, event: events.FileSystemEvent) -> None:
         pprint.pprint(event)
 
-    def on_moved(self, event: FileSystemEvent) -> None:
+    def on_moved(self, event: events.FileSystemEvent) -> None:
         pprint.pprint(event)
 
 
-def initialize(path: str) -> observers.Observer:
-    event_handler = EventHandler()
+def create_observer(
+    event_handler: EventHandler, path: str
+) -> observers.Observer:
     observer = observers.Observer()
     observer.schedule(event_handler, path, recursive=True)
     return observer
@@ -97,16 +131,33 @@ def log() -> None:
 
 
 def main() -> None:
+    print("Starting.")
+
     settings = LocalSettings()
     api_caller = APICaller(settings)
     api_caller.setup()
 
-    observer = initialize(settings.path)
-    observer.start()
+    all_observers = []
+    for config in settings.configs:
+        event_handler = EventHandler(config)
+        print(f"Creating observer for path: {config.synchronized_path}")
+        observer = create_observer(event_handler, config.synchronized_path)
+        all_observers.append(observer)
+
+    print("Starting observers.")
+    for observer in all_observers:
+        observer.start()
+
     try:
         while True:
             log()
     except KeyboardInterrupt:
-        print("\nEnding synchronizer main procedure.")
-        observer.stop()
-    observer.join()
+        print("\nStopping observers.")
+        for observer in all_observers:
+            observer.stop()
+
+    print("Joining observers.")
+    for observer in all_observers:
+        observer.join()
+
+    print("Exiting.")
