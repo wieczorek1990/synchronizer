@@ -11,5 +11,5 @@ DEBUG=1 ./bin/run.sh
 
 ```shell
 cd client
-DEBUG=1 ./bin/run.sh
+DEBUG=1 ./bin/run.sh run
 ```
